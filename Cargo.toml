@@ -2,6 +2,7 @@
 authors = ["Ceri Storey <ceri@lshift.net>"]
 license = "MIT"
 name = "phi-accrual"
+description = "Implementation of the Phi Accrual Failure Detector"
 repository = "https://github.com/cstorey/phi-accrual-rs"
 version = "0.1.0"
 

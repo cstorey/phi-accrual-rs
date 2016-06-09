@@ -7,6 +7,7 @@ use std::collections::VecDeque;
 #[derive(Clone,Debug)]
 pub struct PhiFailureDetector {
     min_stddev: f64,
+    history_size: usize,
     buf: VecDeque<u64>,
 }
 
@@ -14,12 +15,24 @@ impl PhiFailureDetector {
     pub fn new() -> PhiFailureDetector {
         PhiFailureDetector {
             min_stddev: 0.01,
+            history_size: 10,
             buf: VecDeque::new(),
         }
     }
+    pub fn min_stddev(self, min_stddev: f64) -> PhiFailureDetector {
+        assert!(min_stddev > 0.0, "min_stddev must be > 0.0");
+        PhiFailureDetector { min_stddev: min_stddev, ..self }
+    }
 
+    pub fn history_size(self, count: usize) -> PhiFailureDetector {
+        assert!(count > 0, "history_size must > 0");
+        PhiFailureDetector { history_size: count, ..self }
+    }
     pub fn heartbeat(&mut self, t: u64) {
-        self.buf.push_back(t)
+        self.buf.push_back(t);
+        if self.buf.len() > self.history_size {
+            let _ = self.buf.pop_front();
+        }
     }
 
     /// def ϕ(Tnow ) = − log10(Plater (Tnow − Tlast))
@@ -97,7 +110,7 @@ mod tests {
     #[test]
     fn should_recover() {
         env_logger::init().unwrap_or(());
-        let mut detector = PhiFailureDetector::new();
+        let mut detector = PhiFailureDetector::new().history_size(3);
         for t in 0..10 {
             detector.heartbeat(t);
             let phi = detector.phi(t);

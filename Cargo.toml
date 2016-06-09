@@ -1,6 +1,11 @@
 [package]
+authors = ["Ceri Storey <ceri@lshift.net>"]
+license = "MIT"
 name = "phi-accrual"
 version = "0.1.0"
-authors = ["Ceri Storey <ceri@lshift.net>"]
 
 [dependencies]
+log = "0.3.6"
+
+[dev-dependencies]
+env_logger = "0.3.3"

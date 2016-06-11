@@ -1,8 +1,9 @@
 #[macro_use]
 extern crate log;
+extern crate special;
 
 use std::collections::VecDeque;
-
+use special::Error;
 
 #[derive(Clone,Debug)]
 pub struct PhiFailureDetector {
@@ -62,21 +63,19 @@ impl PhiFailureDetector {
                            .fold(0_f64, |acc, i| acc + i) / nitems as f64;
 
         let stddev = variance.sqrt().max(self.min_stddev);
-        let y = (diff as f64 - mean) / stddev;
-        let e = (-y * (1.5976 + 0.070566 * y * y)).exp();
-        let cdf = if diff as f64 > mean {
-            e / (1.0 + e)
-        } else {
-            1.0 - 1.0 / (1.0 + e)
-        };
-        trace!("diff:{:?}; mean:{:?}; stddev:{:?}; y:{:?}; e:{:?}; cdf:{:?}",
+        let x = (diff as f64 - mean) / stddev;
+        let cdf = Self::cdf(x);
+        trace!("diff:{:?}; mean:{:?}; stddev:{:?}; x:{:?}; cdf:{:?}",
                diff,
                mean,
                stddev,
-               y,
-               e,
+               x,
                cdf);
-        cdf
+        1.0 - cdf
+    }
+
+    fn cdf(x:f64) -> f64 {
+        0.5*(1.0+ (x/(2.0f64).sqrt()).erf())
     }
 }
 

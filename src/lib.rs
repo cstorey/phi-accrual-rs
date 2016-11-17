@@ -11,6 +11,7 @@ pub struct PhiFailureDetector {
     min_stddev: f64,
     history_size: usize,
     buf: VecDeque<u64>,
+    prev_heartbeat: Option<u64>,
 }
 
 impl PhiFailureDetector {
@@ -19,6 +20,7 @@ impl PhiFailureDetector {
             min_stddev: 0.01,
             history_size: 10,
             buf: VecDeque::new(),
+            prev_heartbeat: None,
         }
     }
     pub fn min_stddev(self, min_stddev: f64) -> PhiFailureDetector {
@@ -31,15 +33,22 @@ impl PhiFailureDetector {
         PhiFailureDetector { history_size: count, ..self }
     }
     pub fn heartbeat(&mut self, t: u64) {
-        self.buf.push_back(t);
-        if self.buf.len() > self.history_size {
-            let _ = self.buf.pop_front();
+        match &mut self.prev_heartbeat {
+            prev@&mut None => { *prev = Some(t); return }
+            &mut Some(ref mut prev) => {
+                let delta = t - *prev;
+                self.buf.push_back(delta);
+                *prev = t;
+                if self.buf.len() > self.history_size {
+                    let _ = self.buf.pop_front();
+                }
+            }
         }
     }
 
     /// def ϕ(Tnow ) = − log10(Plater (Tnow − Tlast))
     pub fn phi(&mut self, now: u64) -> f64 {
-        if let Some(&prev_time) = self.buf.back() {
+        if let &Some(prev_time) = &self.prev_heartbeat {
             let p_later = self.p_later(now - prev_time);
             trace!("diff: {:?}; p_later:{:?}", now - prev_time, p_later);
             -p_later.log10()
@@ -49,11 +58,8 @@ impl PhiFailureDetector {
     }
 
     fn p_later(&self, diff: u64) -> f64 {
-        let deltas = self.buf.iter().zip(self.buf.iter().skip(1)).map(|(&a, &b)| b - a);
-        let mean = stats::mean(deltas);
-
-        let deltas = self.buf.iter().zip(self.buf.iter().skip(1)).map(|(&a, &b)| b - a);
-        let stddev = stats::stddev(deltas).max(self.min_stddev);
+        let mean = stats::mean(self.buf.iter().cloned());
+        let stddev = stats::stddev(self.buf.iter().cloned()).max(self.min_stddev);
         let x = (diff as f64 - mean) / stddev;
         let cdf = Self::cdf(x);
         trace!("diff:{:?}; mean:{:?}; stddev:{:?}; x:{:?}; cdf:{:?}",

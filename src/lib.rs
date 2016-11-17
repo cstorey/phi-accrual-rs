@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate log;
 extern crate special;
+extern crate stats;
 
 use std::collections::VecDeque;
 use special::Error;
@@ -48,21 +49,11 @@ impl PhiFailureDetector {
     }
 
     fn p_later(&self, diff: u64) -> f64 {
-        let deltasum = if let (Some(&front), Some(&back)) = (self.buf.front(), self.buf.back()) {
-            back - front
-        } else {
-            0
-        };
-        let nitems = self.buf.len() - 1;
-        let mean = nitems as f64 / deltasum as f64;
-        let variance = self.buf
-                           .iter()
-                           .zip(self.buf.iter().skip(1))
-                           .map(|(&a, &b)| b - a)
-                           .map(|i| (mean - i as f64).powi(2))
-                           .fold(0_f64, |acc, i| acc + i) / nitems as f64;
+        let deltas = self.buf.iter().zip(self.buf.iter().skip(1)).map(|(&a, &b)| b - a);
+        let mean = stats::mean(deltas);
 
-        let stddev = variance.sqrt().max(self.min_stddev);
+        let deltas = self.buf.iter().zip(self.buf.iter().skip(1)).map(|(&a, &b)| b - a);
+        let stddev = stats::stddev(deltas).max(self.min_stddev);
         let x = (diff as f64 - mean) / stddev;
         let cdf = Self::cdf(x);
         trace!("diff:{:?}; mean:{:?}; stddev:{:?}; x:{:?}; cdf:{:?}",
@@ -90,19 +81,19 @@ mod tests {
         for t in 0..100 {
             detector.heartbeat(t);
             let phi = detector.phi(t);
-            debug!("at:{:?}, phi:{:?}; det: {:?}", t, phi, detector);
+            println!("at:{:?}, phi:{:?}; det: {:?}", t, phi, detector);
             if t > 10 {
                 assert!(phi < 1.0);
             }
         }
         for t in 100..110 {
             let phi = detector.phi(t);
-            debug!("at:{:?}, phi:{:?}; det: {:?}", t, phi, detector);
+            println!("at:{:?}, phi:{:?}; det: {:?}", t, phi, detector);
         }
         for &t in &[110, 200, 300] {
             let phi = detector.phi(t);
-            debug!("at:{:?}, phi:{:?}; det: {:?}", t, phi, detector);
-            assert!(phi > 1.0);
+            println!("at:{:?}, phi:{:?}; det: {:?}", t, phi, detector);
+            assert!(phi > 1.0, "t:{:?}; phi:{:?} > 1.0", t, phi);
         }
     }
 
@@ -113,12 +104,12 @@ mod tests {
         for t in 0..10 {
             detector.heartbeat(t);
             let phi = detector.phi(t);
-            debug!("at:{:?}, phi:{:?}; det: {:?}", t, phi, detector);
+            println!("at:{:?}, phi:{:?}; det: {:?}", t, phi, detector);
         }
         for t in 20..30 {
             detector.heartbeat(t);
             let phi = detector.phi(t);
-            debug!("at:{:?}, phi:{:?}; det: {:?}", t, phi, detector);
+            println!("at:{:?}, phi:{:?}; det: {:?}", t, phi, detector);
             if t > 10 {
                 assert!(phi < 1.0);
             }

@@ -1,10 +1,8 @@
 #[macro_use]
 extern crate log;
-extern crate special;
 extern crate stats;
 
 use std::collections::VecDeque;
-use special::Error;
 use std::iter;
 
 #[derive(Clone,Debug)]
@@ -72,23 +70,9 @@ impl PhiFailureDetector {
         }
     }
 
-    /// Returns the time t at which phi will be >= val
-    /// def ϕ(Tnow ) = − log10(Plater (Tnow − Tlast))
-    // - phi = log10(Plater (Tnow − Tlast))
-    // 10^(-phi) = Plater (Tnow − Tlast)
-    // p = (Tnow - Tlast / stddev)
-    // Plater(diff) = cdf(p);
-    // 10^(-phi) = cdf(p);
-    // e(x) = (-x * (1.5976 + 0.070566 * x * x))
-    // cdf(x) = e(x) / (1.0 + e)
-    // 10^(-phi) = exp(-x * (1.5976 + 0.070566 * x * x)) / (1.0 + exp(-x * (1.5976 + 0.070566 * x * x)))
-    // We plug the RHS into wolfram alpha, solve for x: and
-
-
-    // .. at which point we can use our statistical measures to extrapolate t.
-    //
-    pub fn next_crossing_at(&self, now: u64, threshold: f64) -> u64 {
-        let res = approximate_inverse(now, 0.0001, |t| self.phi(t as u64) - threshold);
+    /// Returns the time t (within epsilon) at which phi will be >= val .
+    pub fn next_crossing_at(&self, now: u64, epsilon: u64, threshold: f64) -> u64 {
+        let res = approximate_inverse(now, epsilon, |t| self.phi(t as u64) - threshold);
         res as u64
     }
 
@@ -122,14 +106,11 @@ impl PhiFailureDetector {
     }
 }
 
+// Searches for the root of f(x) = 0.0.
 // This assumes that the function is monotonic, and the answer is positive.
-fn approximate_inverse<F: Fn(u64) -> f64>(mut lower: u64, tolerance: f64, f: F) -> u64 {
-    // XXX:TODO:FIXME:DO A BARREL-ROLL^W^WBINARY/EXPONENTIAL SEARCH
-    // START WITH THE STANDARD DEVIATION OR SOME SHIT
-    // EXPsearch part.
-    let mut l_r = f(lower);
-    assert!(l_r < 0.0);
+fn approximate_inverse<F: Fn(u64) -> f64>(mut lower: u64, in_tolerance: u64, f: F) -> u64 {
 
+    // Exponential search for the upper bound.
     let mut upper = iter::repeat(())
         .scan(lower, |state, ()| {
                 let r = Some(*state);
@@ -141,14 +122,25 @@ fn approximate_inverse<F: Fn(u64) -> f64>(mut lower: u64, tolerance: f64, f: F) 
         .inspect(|&x| debug!("upper bound: f({:?}) = {:?}", x, f(x)))
         .next().unwrap();
 
+
+    let mut l_r = f(lower);
     let mut u_r = f(upper);
+
+    // Check that the authors assumptions hold.
+    assert!(l_r < 0.0);
+    assert!(u_r >= 0.0);
     assert!(!l_r.is_nan());
     assert!(!u_r.is_nan());
+
+    // Binary search between upper and lower for the zero-crossing.
     for _ in 0..64 {
         debug!("f({}) = {} < x < f({}) = {}", lower, l_r, upper, u_r);
         assert!(l_r < 0.0);
         assert!(u_r >= 0.0);
-        if u_r.abs() < tolerance || (upper - lower) <= 1 {
+        trace!("upper-lower:{} <=? in_tolerance:{}",
+               upper - lower,
+               in_tolerance);
+        if (upper - lower) <= in_tolerance {
             return upper;
         }
 
@@ -174,7 +166,7 @@ fn approximate_inverse<F: Fn(u64) -> f64>(mut lower: u64, tolerance: f64, f: F) 
 mod tests {
     extern crate env_logger;
     extern crate rand;
-    use super::{PhiFailureDetector, approximate_inverse};
+    use super::PhiFailureDetector;
     use self::rand::distributions::normal::LogNormal;
     use self::rand::distributions::Sample;
     use self::rand::thread_rng;
@@ -223,7 +215,7 @@ mod tests {
     #[test]
     fn should_estimate_threshold_times() {
         env_logger::init().unwrap_or(());
-        let epsilon = 1;
+        let epsilon = 2;
         let mut detector = PhiFailureDetector::new().history_size(3);
 
         for n in 0u64..10 {
@@ -239,7 +231,7 @@ mod tests {
         }
         // Estimate the point at which
         let threshold = 1.0;
-        let est_1 = detector.next_crossing_at(10_000, threshold);
+        let est_1 = detector.next_crossing_at(10_000, epsilon, threshold);
 
         let pre = detector.phi(est_1 - epsilon);
         let at = detector.phi(est_1);

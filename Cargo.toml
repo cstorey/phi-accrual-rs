@@ -8,7 +8,6 @@ version = "0.1.0"
 
 [dependencies]
 log = "0.3.6"
-special = "0.7.0"
 streaming-stats = "0.1.28"
 
 [dev-dependencies]

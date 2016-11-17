@@ -13,3 +13,4 @@ streaming-stats = "0.1.28"
 
 [dev-dependencies]
 env_logger = "0.3.3"
+rand = "0.3.14"

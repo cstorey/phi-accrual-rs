@@ -73,7 +73,7 @@ impl PhiFailureDetector {
     }
 
     /// Returns the time t (within epsilon) at which phi will be >= val .
-    pub fn next_crossing_at(&self, now: u64, epsilon: u64, threshold: f64) -> u64 {
+    pub fn next_crossing_at(&self, now: u64, threshold: f64) -> u64 {
         let phappened = 1.0 - (10.0f64).powf(-threshold);
 
         let x = phappened.norm_inv();
@@ -189,7 +189,7 @@ mod tests {
         }
         // Estimate the point at which
         let threshold = 1.0;
-        let est_1 = detector.next_crossing_at(t, epsilon, threshold);
+        let est_1 = detector.next_crossing_at(t, threshold);
 
         let pre = detector.phi(est_1 - epsilon);
         let at = detector.phi(est_1);

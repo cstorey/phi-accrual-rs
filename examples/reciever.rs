@@ -86,7 +86,7 @@ fn main() {
                 _ => None,
             };
             let next = threshold.map(|next| {
-                    fd.next_crossing_at(t, 1000 /* ns */, next)
+                    fd.next_crossing_at(t, next)
                 })
                 .map(|d| d - t)
                 .map(|d| Duration::new(d / BILLION, (d % BILLION) as u32));

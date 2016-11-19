@@ -82,7 +82,7 @@ impl PhiFailureDetector {
         let diff = x * stddev + mean;
         let then = now + diff.ceil() as u64;
 
-        println!("threshold:{}; phappened:{}; x:{}; mean:{}; stddev:{}; diff:{}; then:{}",
+        trace!("threshold:{}; phappened:{}; x:{}; mean:{}; stddev:{}; diff:{}; then:{}",
                  threshold,
                  phappened,
                  x,
@@ -100,11 +100,6 @@ impl PhiFailureDetector {
         let stddev = stats::stddev(self.buf.iter().cloned()).max(self.min_stddev);
         let x = (diff as f64 - mean) / stddev;
         // let cdf = 0.5*(1.0+ (x/(2.0f64).sqrt()).erf())
-        trace!("diff:{:?}; mean:{:?}; stddev:{:?}; x:{:?}",
-               diff,
-               mean,
-               stddev,
-               x);
         let p = 1.0 - x.norm();
         trace!("diff:{:e}; mean:{:e}; stddev:{:e} x:{:e}; p_later:{:e}",
                diff as f64,

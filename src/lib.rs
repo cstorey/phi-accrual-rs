@@ -4,7 +4,7 @@ extern crate stats;
 extern crate special_fun;
 
 use std::collections::VecDeque;
-use std::iter;
+use std::f64;
 use special_fun::FloatSpecial;
 
 #[derive(Clone,Debug)]
@@ -74,10 +74,25 @@ impl PhiFailureDetector {
 
     /// Returns the time t (within epsilon) at which phi will be >= val .
     pub fn next_crossing_at(&self, now: u64, epsilon: u64, threshold: f64) -> u64 {
-        trace!("Approxmating next crossing...");
-        let res = approximate_inverse(now, epsilon, |t| self.phi(t as u64) - threshold);
-        trace!("Approxmation done");
-        res as u64
+        let phappened = 1.0 - (10.0f64).powf(-threshold);
+
+        let x = phappened.norm_inv();
+        let mean = stats::mean(self.buf.iter().cloned());
+        let stddev = stats::stddev(self.buf.iter().cloned()).max(self.min_stddev);
+        let diff = x * stddev + mean;
+        let then = now + diff.ceil() as u64;
+
+        println!("threshold:{}; phappened:{}; x:{}; mean:{}; stddev:{}; diff:{}; then:{}",
+                 threshold,
+                 phappened,
+                 x,
+                 mean,
+                 stddev,
+                 diff,
+                 then);
+
+        then
+
     }
 
     fn p_later(&self, diff: u64) -> f64 {
@@ -97,65 +112,15 @@ impl PhiFailureDetector {
                stddev,
                x,
                p);
-        p
-
-    }
-}
-
-// Searches for the root of f(x) = 0.0.
-// This assumes that the function is monotonic, and the answer is positive.
-fn approximate_inverse<F: Fn(u64) -> f64>(mut lower: u64, in_tolerance: u64, f: F) -> u64 {
-
-    // Exponential search for the upper bound.
-    let mut upper = iter::repeat(())
-        .scan(lower, |state, ()| {
-                let r = Some(*state);
-                *state = *state * 2;
-                r
-                })
-        .inspect(|&x| trace!("f({:?}) = {:?}", x, f(x)))
-        .skip_while(|&x| f(x) < 0.0)
-        .inspect(|&x| trace!("upper bound: f({:?}) = {:?}", x, f(x)))
-        .next().unwrap();
-
-
-    let mut l_r = f(lower);
-    let mut u_r = f(upper);
-
-    // Check that the authors assumptions hold.
-    assert!(l_r < 0.0);
-    assert!(u_r >= 0.0);
-    assert!(!l_r.is_nan());
-    assert!(!u_r.is_nan());
-
-    // Binary search between upper and lower for the zero-crossing.
-    for _ in 0..64 {
-        trace!("f({}) = {} < x < f({}) = {}", lower, l_r, upper, u_r);
-        assert!(l_r < 0.0);
-        assert!(u_r >= 0.0);
-        trace!("upper-lower:{} <=? in_tolerance:{}",
-               upper - lower,
-               in_tolerance);
-        if (upper - lower) <= in_tolerance {
-            return upper;
-        }
-
-        let mid = (lower + upper) / 2;
-        let m_r = f(mid);
-        trace!("f({}) => {}", mid, m_r);
-        assert!(!m_r.is_nan());
-
-        if m_r < 0.0 {
-            trace!("right half");
-            lower = mid;
-            l_r = m_r;
+        // We want to avoid returning zero, as we want the logarithm of the probability.
+        // And the log of zero is meaningless.
+        if p < f64::MIN_POSITIVE {
+            f64::MIN_POSITIVE
         } else {
-            trace!("left half");
-            upper = mid;
-            u_r = m_r;
+            p
         }
+
     }
-    unreachable!()
 }
 
 #[cfg(test)]
@@ -215,20 +180,21 @@ mod tests {
         let epsilon = 2;
         let mut detector = PhiFailureDetector::new().history_size(3);
 
+        let mut t = 0;
         for n in 0u64..10 {
             let mut dist = LogNormal::new(10.0, 100.0);
             let diff = dist.sample(&mut thread_rng());
-            let t = n as f64 * 1000.0;
+            t = n * 1000;
             trace!("at:{:?}, diff:{:e}; phi:{:?}; det: {:?}",
                    t,
                    diff,
-                   detector.phi(t as u64),
+                   detector.phi(t),
                    detector);
-            detector.heartbeat(t as u64);
+            detector.heartbeat(t);
         }
         // Estimate the point at which
         let threshold = 1.0;
-        let est_1 = detector.next_crossing_at(10_000, epsilon, threshold);
+        let est_1 = detector.next_crossing_at(t, epsilon, threshold);
 
         let pre = detector.phi(est_1 - epsilon);
         let at = detector.phi(est_1);

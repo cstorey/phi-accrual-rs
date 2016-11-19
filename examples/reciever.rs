@@ -12,6 +12,7 @@ use std::time::{SystemTime, Duration};
 use phi_accrual::PhiFailureDetector;
 
 const BILLION: u64 = 1000000000;
+const MIN_STABLE : u64 = 5;
 
 fn main() {
     env_logger::init().unwrap();
@@ -34,6 +35,7 @@ fn main() {
         let t = dur.as_secs() as u64 * BILLION + dur.subsec_nanos() as u64;
         fd.heartbeat(t);
         let mut prev = start;
+        let mut n_stable = 0;
         loop {
             debug!("fd:{:?}", fd);
             let read_result = sock.read(&mut [0; 1]);
@@ -41,7 +43,6 @@ fn main() {
             let dur = now.duration_since(start).expect("duration_since");
             let t = dur.as_secs() as u64 * BILLION + dur.subsec_nanos() as u64;
             let phi = fd.phi(t);
-
             match read_result {
                 Ok(res) => {
                     info!("Read {}bytes", res);
@@ -49,13 +50,27 @@ fn main() {
                         break;
                     }
 
-                    info!("Interval:{:?}; Phi:{}",
+                    if phi <= 3.0 {
+                        n_stable += 1;
+                    }
+                    if n_stable ==  MIN_STABLE {
+                        info!("Now stable at {:?}/{:?}", n_stable, phi);
+                    }
+
+                    info!("Interval:{:?}; stable:{}; Phi:{}",
                           now.duration_since(prev).expect("duration"),
+                          n_stable,
                           phi);
                     fd.heartbeat(t);
+
+                    prev = now;
                 }
                 Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                    debug!("Got read timeout! phi:{}", phi);
+                    debug!("Got read timeout! stable:{}; phi:{}", n_stable, phi);
+                    if n_stable > MIN_STABLE &&phi > 6.0 {
+                        warn!("Bailing on unstable connection:{}/{}", n_stable, phi);
+                        break;
+                    }
                 }
                 Err(e) => {
                     error!("Read error:{:?}", e);
@@ -75,11 +90,9 @@ fn main() {
                 })
                 .map(|d| d - t)
                 .map(|d| Duration::new(d / BILLION, (d % BILLION) as u32));
-            debug!("phi: current:{}; next:{:?}; in {:?}", phi, threshold, next);
+            debug!("phi: stable:{}; current:{}; next:{:?}; in {:?}", n_stable, phi, threshold, next);
 
             sock.set_read_timeout(next).expect("set_read_timeout");
-
-            prev = now;
         }
     }
 }

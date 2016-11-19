@@ -54,7 +54,7 @@ impl PhiFailureDetector {
     /// def ϕ(Tnow ) = − log10(Plater (Tnow − Tlast))
     pub fn phi(&self, now: u64) -> f64 {
         match &self.prev_heartbeat {
-            &Some(prev_time) if now >= prev_time => {
+            &Some(prev_time) if now > prev_time => {
                 trace!("now:{} - prev_heartbeat:{} = {:?}",
                        now,
                        prev_time,
@@ -63,7 +63,7 @@ impl PhiFailureDetector {
                 -p_later.log10()
             }
             &Some(prev_time) => {
-                trace!("now:{} < prev_heartbeat:{}", now, prev_time);
+                trace!("now:{} <= prev_heartbeat:{}", now, prev_time);
                 0.0
             }
             &None => 0.0,
@@ -72,7 +72,9 @@ impl PhiFailureDetector {
 
     /// Returns the time t (within epsilon) at which phi will be >= val .
     pub fn next_crossing_at(&self, now: u64, epsilon: u64, threshold: f64) -> u64 {
+        trace!("Approxmating next crossing...");
         let res = approximate_inverse(now, epsilon, |t| self.phi(t as u64) - threshold);
+        trace!("Approxmation done");
         res as u64
     }
 
@@ -87,15 +89,25 @@ impl PhiFailureDetector {
                stddev,
                x);
         let e = (-x * (1.5976 + 0.070566 * x * x)).exp();
-        let cdf = e / (1.0 + e);
+        let cdf = if e.is_finite() {
+            e / (1.0 + e)
+        } else if e > 0.0 {
+            1.0
+        } else {
+            0.0
+        };
         let p = cdf /* if diff >mean {
             1.0 - cdf
         } else {
             cdf
         }*/;
-        trace!("x:{:?}; e:{:e}; cdf:{:e} p_later:{:e}", x, e, cdf, p);
-        trace!("diff:{:?}; mean:{:e}; stddev:{:e} x:{:e}; cdf:{:e}; p_later:{:e}",
-               diff,
+        trace!("e.is_finite():{:?}; e >0.0:{:?}; e <= 0.0:{:?}",
+               e.is_finite(),
+               e > 0.0,
+               e <= 0.0);
+        trace!("x:{:e}; e:{:e}; cdf:{:e} p_later:{:e}", x, e, cdf, p);
+        trace!("diff:{:e}; mean:{:e}; stddev:{:e} x:{:e}; cdf:{:e}; p_later:{:e}",
+               diff as f64,
                mean,
                stddev,
                x,
@@ -117,9 +129,9 @@ fn approximate_inverse<F: Fn(u64) -> f64>(mut lower: u64, in_tolerance: u64, f: 
                 *state = *state * 2;
                 r
                 })
-        .inspect(|&x| debug!("f({:?}) = {:?}", x, f(x)))
+        .inspect(|&x| trace!("f({:?}) = {:?}", x, f(x)))
         .skip_while(|&x| f(x) < 0.0)
-        .inspect(|&x| debug!("upper bound: f({:?}) = {:?}", x, f(x)))
+        .inspect(|&x| trace!("upper bound: f({:?}) = {:?}", x, f(x)))
         .next().unwrap();
 
 
@@ -134,7 +146,7 @@ fn approximate_inverse<F: Fn(u64) -> f64>(mut lower: u64, in_tolerance: u64, f: 
 
     // Binary search between upper and lower for the zero-crossing.
     for _ in 0..64 {
-        debug!("f({}) = {} < x < f({}) = {}", lower, l_r, upper, u_r);
+        trace!("f({}) = {} < x < f({}) = {}", lower, l_r, upper, u_r);
         assert!(l_r < 0.0);
         assert!(u_r >= 0.0);
         trace!("upper-lower:{} <=? in_tolerance:{}",
@@ -146,15 +158,15 @@ fn approximate_inverse<F: Fn(u64) -> f64>(mut lower: u64, in_tolerance: u64, f: 
 
         let mid = (lower + upper) / 2;
         let m_r = f(mid);
-        debug!("f({}) => {}", mid, m_r);
+        trace!("f({}) => {}", mid, m_r);
         assert!(!m_r.is_nan());
 
         if m_r < 0.0 {
-            debug!("right half");
+            trace!("right half");
             lower = mid;
             l_r = m_r;
         } else {
-            debug!("left half");
+            trace!("left half");
             upper = mid;
             u_r = m_r;
         }
@@ -177,18 +189,18 @@ mod tests {
         for t in 0..100 {
             detector.heartbeat(t);
             let phi = detector.phi(t);
-            debug!("at:{:?}, phi:{:?}; det: {:?}", t, phi, detector);
+            trace!("at:{:?}, phi:{:?}; det: {:?}", t, phi, detector);
             if t > 10 {
                 assert!(phi < 1.0);
             }
         }
         for t in 100..110 {
             let phi = detector.phi(t);
-            debug!("at:{:?}, phi:{:?}; det: {:?}", t, phi, detector);
+            trace!("at:{:?}, phi:{:?}; det: {:?}", t, phi, detector);
         }
         for &t in &[110, 200, 300] {
             let phi = detector.phi(t);
-            debug!("at:{:?}, phi:{:?}; det: {:?}", t, phi, detector);
+            trace!("at:{:?}, phi:{:?}; det: {:?}", t, phi, detector);
             assert!(phi > 1.0, "t:{:?}; phi:{:?} > 1.0", t, phi);
         }
     }
@@ -200,12 +212,12 @@ mod tests {
         for t in 0..10 {
             detector.heartbeat(t);
             let phi = detector.phi(t);
-            debug!("at:{:?}, phi:{:?}; det: {:?}", t, phi, detector);
+            trace!("at:{:?}, phi:{:?}; det: {:?}", t, phi, detector);
         }
         for t in 20..30 {
             detector.heartbeat(t);
             let phi = detector.phi(t);
-            debug!("at:{:?}, phi:{:?}; det: {:?}", t, phi, detector);
+            trace!("at:{:?}, phi:{:?}; det: {:?}", t, phi, detector);
             if t > 10 {
                 assert!(phi < 1.0);
             }
@@ -222,7 +234,7 @@ mod tests {
             let mut dist = LogNormal::new(10.0, 100.0);
             let diff = dist.sample(&mut thread_rng());
             let t = n as f64 * 1000.0;
-            debug!("at:{:?}, diff:{:e}; phi:{:?}; det: {:?}",
+            trace!("at:{:?}, diff:{:e}; phi:{:?}; det: {:?}",
                    t,
                    diff,
                    detector.phi(t as u64),

@@ -1,8 +1,8 @@
 [package]
 authors = ["Ceri Storey <ceri@lshift.net>"]
+description = "Implementation of the Phi Accrual Failure Detector"
 license = "MIT"
 name = "phi-accrual"
-description = "Implementation of the Phi Accrual Failure Detector"
 repository = "https://github.com/cstorey/phi-accrual-rs"
 version = "0.1.0"
 
@@ -11,5 +11,6 @@ log = "0.3.6"
 streaming-stats = "0.1.28"
 
 [dev-dependencies]
+clap = "2.18.0"
 env_logger = "0.3.3"
 rand = "0.3.14"

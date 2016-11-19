@@ -1,9 +1,11 @@
 #[macro_use]
 extern crate log;
 extern crate stats;
+extern crate special_fun;
 
 use std::collections::VecDeque;
 use std::iter;
+use special_fun::FloatSpecial;
 
 #[derive(Clone,Debug)]
 pub struct PhiFailureDetector {
@@ -88,30 +90,12 @@ impl PhiFailureDetector {
                mean,
                stddev,
                x);
-        let e = (-x * (1.5976 + 0.070566 * x * x)).exp();
-        let cdf = if e.is_finite() {
-            e / (1.0 + e)
-        } else if e > 0.0 {
-            1.0
-        } else {
-            0.0
-        };
-        let p = cdf /* if diff >mean {
-            1.0 - cdf
-        } else {
-            cdf
-        }*/;
-        trace!("e.is_finite():{:?}; e >0.0:{:?}; e <= 0.0:{:?}",
-               e.is_finite(),
-               e > 0.0,
-               e <= 0.0);
-        trace!("x:{:e}; e:{:e}; cdf:{:e} p_later:{:e}", x, e, cdf, p);
-        trace!("diff:{:e}; mean:{:e}; stddev:{:e} x:{:e}; cdf:{:e}; p_later:{:e}",
+        let p = 1.0 - x.norm();
+        trace!("diff:{:e}; mean:{:e}; stddev:{:e} x:{:e}; p_later:{:e}",
                diff as f64,
                mean,
                stddev,
                x,
-               cdf,
                p);
         p
 
@@ -185,6 +169,7 @@ mod tests {
     #[test]
     fn should_fail_when_no_heartbeats() {
         env_logger::init().unwrap_or(());
+
         let mut detector = PhiFailureDetector::new();
         for t in 0..100 {
             detector.heartbeat(t);

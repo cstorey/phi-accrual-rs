@@ -9,7 +9,7 @@ version = "0.1.0"
 [dependencies]
 log = "0.3.6"
 special-fun = "0.1.3"
-streaming-stats = "0.1.28"
+streaming-stats = "0.2.2"
 
 [dev-dependencies]
 clap = "2.18.0"

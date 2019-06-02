@@ -138,7 +138,7 @@ mod tests {
     use super::PhiFailureDetector;
     #[test]
     fn should_fail_when_no_heartbeats() {
-        env_logger::init().unwrap_or(());
+        env_logger::try_init().unwrap_or_default();
 
         let mut detector = PhiFailureDetector::new();
         for t in 0..100 {
@@ -162,7 +162,7 @@ mod tests {
 
     #[test]
     fn should_recover() {
-        env_logger::init().unwrap_or(());
+        env_logger::try_init().unwrap_or_default();
         let mut detector = PhiFailureDetector::new().history_size(3);
         for t in 0..10 {
             detector.heartbeat(t);
@@ -181,7 +181,7 @@ mod tests {
 
     #[test]
     fn should_estimate_threshold_times() {
-        env_logger::init().unwrap_or(());
+        env_logger::try_init().unwrap_or_default();
         let epsilon = 2;
         let mut detector = PhiFailureDetector::new().history_size(3);
 

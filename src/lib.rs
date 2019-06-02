@@ -1,13 +1,13 @@
 #[macro_use]
 extern crate log;
-extern crate stats;
 extern crate special_fun;
+extern crate stats;
 
+use special_fun::FloatSpecial;
 use std::collections::VecDeque;
 use std::f64;
-use special_fun::FloatSpecial;
 
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct PhiFailureDetector {
     min_stddev: f64,
     history_size: usize,
@@ -26,12 +26,18 @@ impl PhiFailureDetector {
     }
     pub fn min_stddev(self, min_stddev: f64) -> PhiFailureDetector {
         assert!(min_stddev > 0.0, "min_stddev must be > 0.0");
-        PhiFailureDetector { min_stddev: min_stddev, ..self }
+        PhiFailureDetector {
+            min_stddev: min_stddev,
+            ..self
+        }
     }
 
     pub fn history_size(self, count: usize) -> PhiFailureDetector {
         assert!(count > 0, "history_size must > 0");
-        PhiFailureDetector { history_size: count, ..self }
+        PhiFailureDetector {
+            history_size: count,
+            ..self
+        }
     }
     pub fn heartbeat(&mut self, t: u64) {
         match &mut self.prev_heartbeat {
@@ -57,10 +63,12 @@ impl PhiFailureDetector {
     pub fn phi(&self, now: u64) -> f64 {
         match &self.prev_heartbeat {
             &Some(prev_time) if now > prev_time => {
-                trace!("now:{} - prev_heartbeat:{} = {:?}",
-                       now,
-                       prev_time,
-                       now - prev_time);
+                trace!(
+                    "now:{} - prev_heartbeat:{} = {:?}",
+                    now,
+                    prev_time,
+                    now - prev_time
+                );
                 let p_later = self.p_later(now - prev_time);
                 -p_later.log10()
             }
@@ -82,17 +90,18 @@ impl PhiFailureDetector {
         let diff = x * stddev + mean;
         let then = now + diff.ceil() as u64;
 
-        trace!("threshold:{}; phappened:{}; x:{}; mean:{}; stddev:{}; diff:{}; then:{}",
-                 threshold,
-                 phappened,
-                 x,
-                 mean,
-                 stddev,
-                 diff,
-                 then);
+        trace!(
+            "threshold:{}; phappened:{}; x:{}; mean:{}; stddev:{}; diff:{}; then:{}",
+            threshold,
+            phappened,
+            x,
+            mean,
+            stddev,
+            diff,
+            then
+        );
 
         then
-
     }
 
     fn p_later(&self, diff: u64) -> f64 {
@@ -101,12 +110,14 @@ impl PhiFailureDetector {
         let x = (diff as f64 - mean) / stddev;
         // let cdf = 0.5*(1.0+ (x/(2.0f64).sqrt()).erf())
         let p = 1.0 - x.norm();
-        trace!("diff:{:e}; mean:{:e}; stddev:{:e} x:{:e}; p_later:{:e}",
-               diff as f64,
-               mean,
-               stddev,
-               x,
-               p);
+        trace!(
+            "diff:{:e}; mean:{:e}; stddev:{:e} x:{:e}; p_later:{:e}",
+            diff as f64,
+            mean,
+            stddev,
+            x,
+            p
+        );
         // We want to avoid returning zero, as we want the logarithm of the probability.
         // And the log of zero is meaningless.
         if p < f64::MIN_POSITIVE {
@@ -114,7 +125,6 @@ impl PhiFailureDetector {
         } else {
             p
         }
-
     }
 }
 
@@ -122,10 +132,10 @@ impl PhiFailureDetector {
 mod tests {
     extern crate env_logger;
     extern crate rand;
-    use super::PhiFailureDetector;
     use self::rand::distributions::normal::LogNormal;
     use self::rand::distributions::Sample;
     use self::rand::thread_rng;
+    use super::PhiFailureDetector;
     #[test]
     fn should_fail_when_no_heartbeats() {
         env_logger::init().unwrap_or(());
@@ -180,11 +190,13 @@ mod tests {
             let mut dist = LogNormal::new(10.0, 100.0);
             let diff = dist.sample(&mut thread_rng());
             t = n * 1000;
-            trace!("at:{:?}, diff:{:e}; phi:{:?}; det: {:?}",
-                   t,
-                   diff,
-                   detector.phi(t),
-                   detector);
+            trace!(
+                "at:{:?}, diff:{:e}; phi:{:?}; det: {:?}",
+                t,
+                diff,
+                detector.phi(t),
+                detector
+            );
             detector.heartbeat(t);
         }
         // Estimate the point at which
@@ -193,13 +205,15 @@ mod tests {
 
         let pre = detector.phi(est_1 - epsilon);
         let at = detector.phi(est_1);
-        assert!(pre < threshold && at >= threshold,
-                "phi({}):{:?} < {:?} && phi({}):{:?} >= {:?}",
-                est_1 - epsilon,
-                pre,
-                threshold,
-                est_1,
-                at,
-                threshold);
+        assert!(
+            pre < threshold && at >= threshold,
+            "phi({}):{:?} < {:?} && phi({}):{:?} >= {:?}",
+            est_1 - epsilon,
+            pre,
+            threshold,
+            est_1,
+            at,
+            threshold
+        );
     }
 }

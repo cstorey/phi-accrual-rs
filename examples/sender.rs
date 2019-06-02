@@ -3,17 +3,21 @@ extern crate clap;
 #[macro_use]
 extern crate log;
 extern crate env_logger;
-use clap::{Arg, App};
+use clap::{App, Arg};
 use std::io::prelude::*;
 use std::net::TcpStream;
-use std::time::Duration;
 use std::thread::sleep;
-
+use std::time::Duration;
 
 fn main() {
     env_logger::init().unwrap();
     let matches = App::new("sender")
-        .arg(Arg::with_name("target").takes_value(true).index(1).required(true))
+        .arg(
+            Arg::with_name("target")
+                .takes_value(true)
+                .index(1)
+                .required(true),
+        )
         .get_matches();
 
     let target = value_t!(matches, "target", String).unwrap_or_else(|e| e.exit());
@@ -26,5 +30,4 @@ fn main() {
         debug!("Wrote keepalive");
         sleep(Duration::from_secs(1));
     }
-
 }

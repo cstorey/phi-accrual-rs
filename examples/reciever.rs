@@ -4,20 +4,25 @@ extern crate clap;
 extern crate log;
 extern crate env_logger;
 extern crate phi_accrual;
-use clap::{Arg, App};
-use std::io::prelude::*;
-use std::io;
-use std::net::TcpListener;
-use std::time::{SystemTime, Duration};
+use clap::{App, Arg};
 use phi_accrual::PhiFailureDetector;
+use std::io;
+use std::io::prelude::*;
+use std::net::TcpListener;
+use std::time::{Duration, SystemTime};
 
 const BILLION: u64 = 1000000000;
-const MIN_STABLE : u64 = 5;
+const MIN_STABLE: u64 = 5;
 
 fn main() {
     env_logger::init().unwrap();
     let matches = App::new("receiver")
-        .arg(Arg::with_name("listener").takes_value(true).index(1).required(true))
+        .arg(
+            Arg::with_name("listener")
+                .takes_value(true)
+                .index(1)
+                .required(true),
+        )
         .get_matches();
 
     let target = value_t!(matches, "listener", String).unwrap_or_else(|e| e.exit());
@@ -53,21 +58,23 @@ fn main() {
                     if phi <= 3.0 {
                         n_stable += 1;
                     }
-                    if n_stable ==  MIN_STABLE {
+                    if n_stable == MIN_STABLE {
                         info!("Now stable at {:?}/{:?}", n_stable, phi);
                     }
 
-                    info!("Interval:{:?}; stable:{}; Phi:{}",
-                          now.duration_since(prev).expect("duration"),
-                          n_stable,
-                          phi);
+                    info!(
+                        "Interval:{:?}; stable:{}; Phi:{}",
+                        now.duration_since(prev).expect("duration"),
+                        n_stable,
+                        phi
+                    );
                     fd.heartbeat(t);
 
                     prev = now;
                 }
                 Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
                     debug!("Got read timeout! stable:{}; phi:{}", n_stable, phi);
-                    if n_stable > MIN_STABLE &&phi > 6.0 {
+                    if n_stable > MIN_STABLE && phi > 6.0 {
                         warn!("Bailing on unstable connection:{}/{}", n_stable, phi);
                         break;
                     }
@@ -85,12 +92,14 @@ fn main() {
                 phi if phi <= 6.0 => Some(6.0),
                 _ => None,
             };
-            let next = threshold.map(|next| {
-                    fd.next_crossing_at(t, next)
-                })
+            let next = threshold
+                .map(|next| fd.next_crossing_at(t, next))
                 .map(|d| d - t)
                 .map(|d| Duration::new(d / BILLION, (d % BILLION) as u32));
-            debug!("phi: stable:{}; current:{}; next:{:?}; in {:?}", n_stable, phi, threshold, next);
+            debug!(
+                "phi: stable:{}; current:{}; next:{:?}; in {:?}",
+                n_stable, phi, threshold, next
+            );
 
             sock.set_read_timeout(next).expect("set_read_timeout");
         }

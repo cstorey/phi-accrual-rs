@@ -10,7 +10,7 @@ use std::thread::sleep;
 use std::time::Duration;
 
 fn main() {
-    env_logger::init().unwrap();
+    env_logger::init();
     let matches = App::new("sender")
         .arg(
             Arg::with_name("target")

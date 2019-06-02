@@ -15,7 +15,7 @@ const BILLION: u64 = 1000000000;
 const MIN_STABLE: u64 = 5;
 
 fn main() {
-    env_logger::init().unwrap();
+    env_logger::init();
     let matches = App::new("receiver")
         .arg(
             Arg::with_name("listener")

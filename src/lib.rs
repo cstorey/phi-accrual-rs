@@ -132,8 +132,8 @@ impl PhiFailureDetector {
 mod tests {
     extern crate env_logger;
     extern crate rand;
-    use self::rand::distributions::normal::LogNormal;
-    use self::rand::distributions::Sample;
+    use self::rand::distributions::Distribution;
+    use self::rand::distributions::LogNormal;
     use self::rand::thread_rng;
     use super::PhiFailureDetector;
     #[test]

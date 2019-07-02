@@ -1,5 +1,5 @@
 [package]
-authors = ["Ceri Storey <ceri@lshift.net>"]
+authors = ["Ceri Storey <ceri@necrofish.org.uk>"]
 description = "Implementation of the Phi Accrual Failure Detector"
 license = "MIT"
 name = "phi-accrual"

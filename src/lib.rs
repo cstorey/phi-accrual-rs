@@ -132,9 +132,10 @@ impl PhiFailureDetector {
 mod tests {
     extern crate env_logger;
     extern crate rand;
-    use self::rand::distributions::Distribution;
-    use self::rand::distributions::LogNormal;
+    extern crate rand_distr;
     use self::rand::thread_rng;
+    use self::rand_distr::Distribution;
+    use self::rand_distr::LogNormal;
     use super::PhiFailureDetector;
     #[test]
     fn should_fail_when_no_heartbeats() {
@@ -187,7 +188,7 @@ mod tests {
 
         let mut t = 0;
         for n in 0u64..10 {
-            let mut dist = LogNormal::new(10.0, 100.0);
+            let mut dist = LogNormal::new(10.0, 100.0).expect("lognormal");
             let diff = dist.sample(&mut thread_rng());
             t = n * 1000;
             trace!(

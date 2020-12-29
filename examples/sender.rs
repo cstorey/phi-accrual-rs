@@ -2,8 +2,8 @@
 extern crate clap;
 #[macro_use]
 extern crate log;
-extern crate env_logger;
 use clap::{App, Arg};
+use env_logger;
 use std::io::prelude::*;
 use std::net::TcpStream;
 use std::thread::sleep;

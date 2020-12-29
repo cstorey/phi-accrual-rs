@@ -2,8 +2,8 @@
 extern crate clap;
 #[macro_use]
 extern crate log;
-extern crate env_logger;
-extern crate phi_accrual;
+use env_logger;
+
 use clap::{App, Arg};
 use phi_accrual::PhiFailureDetector;
 use std::io;

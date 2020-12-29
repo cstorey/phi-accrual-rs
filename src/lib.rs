@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate log;
-extern crate special_fun;
-extern crate stats;
+
+use stats;
 
 use special_fun::FloatSpecial;
 use std::collections::VecDeque;
@@ -130,13 +130,13 @@ impl PhiFailureDetector {
 
 #[cfg(test)]
 mod tests {
-    extern crate env_logger;
-    extern crate rand;
-    extern crate rand_distr;
     use self::rand::thread_rng;
     use self::rand_distr::Distribution;
     use self::rand_distr::LogNormal;
     use super::PhiFailureDetector;
+    use env_logger;
+    use rand;
+    use rand_distr;
     #[test]
     fn should_fail_when_no_heartbeats() {
         env_logger::try_init().unwrap_or_default();

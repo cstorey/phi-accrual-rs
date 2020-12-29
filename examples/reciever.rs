@@ -1,15 +1,12 @@
-#[macro_use]
-extern crate clap;
-#[macro_use]
-extern crate log;
-extern crate env_logger;
-extern crate phi_accrual;
-use clap::{App, Arg};
-use phi_accrual::PhiFailureDetector;
 use std::io;
 use std::io::prelude::*;
 use std::net::TcpListener;
 use std::time::{Duration, SystemTime};
+
+use clap::{value_t, App, Arg};
+use log::{debug, error, info, warn};
+
+use phi_accrual::PhiFailureDetector;
 
 const BILLION: u64 = 1000000000;
 const MIN_STABLE: u64 = 5;
@@ -34,7 +31,7 @@ fn main() {
     for sock in listener.incoming() {
         let mut sock = sock.expect("accept sock");
         info!("Accepted from:{}", sock.peer_addr().expect("peer addr"));
-        let mut fd = PhiFailureDetector::new().min_stddev(1000_000.0 /* ns */);
+        let mut fd = PhiFailureDetector::new().min_stddev(1_000_000.0 /* ns */);
         let dur = start.elapsed().expect("elapsed");
         // Record micro-seconds
         let t = dur.as_secs() as u64 * BILLION + dur.subsec_nanos() as u64;

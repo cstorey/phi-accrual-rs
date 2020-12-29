@@ -1,13 +1,10 @@
-#[macro_use]
-extern crate clap;
-#[macro_use]
-extern crate log;
-extern crate env_logger;
-use clap::{App, Arg};
 use std::io::prelude::*;
 use std::net::TcpStream;
 use std::thread::sleep;
 use std::time::Duration;
+
+use clap::{value_t, App, Arg};
+use log::debug;
 
 fn main() {
     env_logger::init();

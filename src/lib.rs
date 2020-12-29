@@ -15,19 +15,12 @@ pub struct PhiFailureDetector {
 
 impl PhiFailureDetector {
     pub fn new() -> PhiFailureDetector {
-        PhiFailureDetector {
-            min_stddev: 1.0,
-            history_size: 10,
-            buf: VecDeque::new(),
-            prev_heartbeat: None,
-        }
+        Self::default()
     }
+
     pub fn min_stddev(self, min_stddev: f64) -> PhiFailureDetector {
         assert!(min_stddev > 0.0, "min_stddev must be > 0.0");
-        PhiFailureDetector {
-            min_stddev: min_stddev,
-            ..self
-        }
+        PhiFailureDetector { min_stddev, ..self }
     }
 
     pub fn history_size(self, count: usize) -> PhiFailureDetector {
@@ -41,7 +34,6 @@ impl PhiFailureDetector {
         match &mut self.prev_heartbeat {
             prev @ &mut None => {
                 *prev = Some(t);
-                return;
             }
             &mut Some(ref mut prev) => {
                 if t < *prev {
@@ -60,7 +52,7 @@ impl PhiFailureDetector {
     /// def ϕ(Tnow ) = − log10(Plater (Tnow − Tlast))
     pub fn phi(&self, now: u64) -> f64 {
         match &self.prev_heartbeat {
-            &Some(prev_time) if now > prev_time => {
+            Some(prev_time) if now > *prev_time => {
                 trace!(
                     "now:{} - prev_heartbeat:{} = {:?}",
                     now,
@@ -70,11 +62,11 @@ impl PhiFailureDetector {
                 let p_later = self.p_later(now - prev_time);
                 -p_later.log10()
             }
-            &Some(prev_time) => {
+            Some(prev_time) => {
                 trace!("now:{} <= prev_heartbeat:{}", now, prev_time);
                 0.0
             }
-            &None => 0.0,
+            None => 0.0,
         }
     }
 
@@ -122,6 +114,17 @@ impl PhiFailureDetector {
             f64::MIN_POSITIVE
         } else {
             p
+        }
+    }
+}
+
+impl Default for PhiFailureDetector {
+    fn default() -> Self {
+        PhiFailureDetector {
+            min_stddev: 1.0,
+            history_size: 10,
+            buf: VecDeque::new(),
+            prev_heartbeat: None,
         }
     }
 }

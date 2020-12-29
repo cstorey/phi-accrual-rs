@@ -31,7 +31,7 @@ fn main() {
     for sock in listener.incoming() {
         let mut sock = sock.expect("accept sock");
         info!("Accepted from:{}", sock.peer_addr().expect("peer addr"));
-        let mut fd = PhiFailureDetector::new().min_stddev(1000_000.0 /* ns */);
+        let mut fd = PhiFailureDetector::new().min_stddev(1_000_000.0 /* ns */);
         let dur = start.elapsed().expect("elapsed");
         // Record micro-seconds
         let t = dur.as_secs() as u64 * BILLION + dur.subsec_nanos() as u64;

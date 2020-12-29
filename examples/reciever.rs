@@ -1,15 +1,12 @@
-#[macro_use]
-extern crate clap;
-#[macro_use]
-extern crate log;
-use env_logger;
-
-use clap::{App, Arg};
-use phi_accrual::PhiFailureDetector;
 use std::io;
 use std::io::prelude::*;
 use std::net::TcpListener;
 use std::time::{Duration, SystemTime};
+
+use clap::{value_t, App, Arg};
+use log::{debug, error, info, warn};
+
+use phi_accrual::PhiFailureDetector;
 
 const BILLION: u64 = 1000000000;
 const MIN_STABLE: u64 = 5;

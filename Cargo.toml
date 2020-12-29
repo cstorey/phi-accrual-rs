@@ -5,6 +5,7 @@ license = "MIT"
 name = "phi-accrual"
 repository = "https://github.com/cstorey/phi-accrual-rs"
 version = "0.1.0"
+edition = "2018"
 
 [dependencies]
 log = "0.4.6"
